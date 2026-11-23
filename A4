@@ -1,1 +1,122 @@
 
+import os
+import csv
+
+INPUT_DIR = "input"
+OUTPUT_DIR = "output"
+
+DEPARTMENTS = [
+    "CSE", "IT", "ECE", "EEE", "MECH"
+]
+
+def validate_email(email):
+    return (
+        "@" in email and
+        "." in email and
+        email.index("@") < email.rindex(".") and
+        not email.startswith("@") and
+        not email.endswith(".")
+    )
+
+def process_files():
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    master = []
+    seen = set()
+    event_data = {}
+    errors = []
+
+    for dept in DEPARTMENTS:
+        filename = os.path.join(INPUT_DIR, dept + ".txt")
+
+        try:
+            with open(filename, "r") as file:
+                for line_no, line in enumerate(file, 1):
+                    try:
+                        row = next(csv.reader([line]))
+
+                        if len(row) != 5:
+                            raise ValueError("Invalid line format")
+
+                        reg, name, department, email, events = row
+
+                        reg = reg.strip()
+                        name = name.strip()
+                        department = department.strip()
+                        email = email.strip()
+
+                        if not all([reg, name, department, email, events.strip()]):
+                            raise ValueError("Missing field")
+
+                        if reg in seen:
+                            raise ValueError("Duplicate registration")
+
+                        if not validate_email(email):
+                            raise ValueError("Invalid email")
+
+                        seen.add(reg)
+
+                        event_list = [
+                            e.strip() for e in events.split(";")
+                            if e.strip()
+                        ]
+
+                        master.append(row)
+
+                        for event in event_list:
+                            event_data.setdefault(event, []).append(row)
+
+                    except Exception as e:
+                        errors.append(
+                            f"{dept}.txt Line {line_no}: {e}"
+                        )
+
+        except FileNotFoundError:
+            errors.append(f"Missing file: {filename}")
+
+    # Master registration file
+    with open(os.path.join(OUTPUT_DIR, "master.csv"),
+              "w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(["Register No", "Name", "Department",
+                         "Email", "Events"])
+        writer.writerows(master)
+
+    # Event-wise participant files
+    for event, participants in event_data.items():
+        filename = event.replace(" ", "_") + ".csv"
+
+        with open(os.path.join(OUTPUT_DIR, filename),
+                  "w", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(["Register No", "Name",
+                             "Department", "Email", "Events"])
+            writer.writerows(participants)
+
+    # Summary report
+    with open(os.path.join(OUTPUT_DIR, "summary.txt"),
+              "w") as file:
+        file.write("COLLEGE FEST SUMMARY\n")
+        file.write("--------------------\n")
+        file.write(f"Total Valid Registrations: {len(master)}\n")
+
+        for event, participants in event_data.items():
+            file.write(
+                f"{event}: {len(participants)} participants\n"
+            )
+
+    # Error log
+    with open(os.path.join(OUTPUT_DIR, "error_log.txt"),
+              "w") as file:
+        for error in errors:
+            file.write(error + "\n")
+
+    print("Processing Completed!")
+    print("Valid Registrations:", len(master))
+    print("Errors:", len(errors))
+    print("Output files saved in output folder.")
+
+
+if __name__ == "__main__":
+    process_files()
+
