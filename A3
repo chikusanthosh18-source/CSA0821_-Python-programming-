@@ -1,1 +1,84 @@
 
+def normalize_name(name):
+    return " ".join(name.lower().strip().split())
+
+
+def normalize_phone(phone):
+    return "".join(ch for ch in phone if ch.isdigit())[-10:]
+
+
+def merge_contacts(contacts):
+    merged = {}
+
+    for contact in contacts:
+        name = normalize_name(contact["name"])
+        numbers = {
+            normalize_phone(p) for p in contact.get("phones", [])
+            if normalize_phone(p)
+        }
+        emails = {
+            e.lower().strip() for e in contact.get("emails", []) if e.strip()
+        }
+
+        # Find an existing contact using phone numbers
+        existing = None
+        for number in numbers:
+            if number in merged:
+                existing = merged[number]
+                break
+
+        if existing is None:
+            existing = {
+                "name": name,
+                "phones": set(),
+                "emails": set()
+            }
+
+        existing["phones"].update(numbers)
+        existing["emails"].update(emails)
+
+        # Store all numbers as dictionary keys
+        for number in existing["phones"]:
+            merged[number] = existing
+
+    # Remove duplicate records
+    result = []
+    seen = set()
+
+    for contact in merged.values():
+        if id(contact) not in seen:
+            result.append(contact)
+            seen.add(id(contact))
+
+    return result
+
+
+# Input contacts
+contacts = [
+    {
+        "name": "Dr. Ravi",
+        "phones": ["+91 98400 12345"],
+        "emails": ["ravi@gmail.com"]
+    },
+    {
+        "name": "ravi kumar",
+        "phones": ["9840012345", "9876543210"],
+        "emails": ["ravi@yahoo.com"]
+    },
+    {
+        "name": "Arun",
+        "phones": ["9123456789"],
+        "emails": ["arun@gmail.com"]
+    }
+]
+
+# Merge contacts
+result = merge_contacts(contacts)
+
+# Display output
+for contact in result:
+    print("Name:", contact["name"])
+    print("Phone Numbers:", contact["phones"])
+    print("Emails:", contact["emails"])
+    print()
+
